@@ -1,0 +1,9 @@
+$INCLUDE "base.zone"
+{% for entry in zone %}
+{%   if entry.address | ansible.utils.ipv4 %}
+{{ entry.address | split('.') | last }} IN PTR {{ entry.hostname }}.
+{%   else %}
+{{ entry.address | split(':') | last }} IN PTR {{ entry.hostname }}.
+{%   endif %}
+{% endfor %}
+

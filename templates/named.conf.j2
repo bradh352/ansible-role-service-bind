@@ -1,0 +1,57 @@
+options {
+	listen-on port 53 { any; };
+	listen-on-v6 port 53 { any; };
+	directory          "{{ bind_path }}";
+	dump-file          "{{ bind_data_path }}/cache_dump.db";
+	statistics-file    "{{ bind_data_path }}/named_stats.txt";
+	memstatistics-file "{{ bind_data_path }}/named_mem_stats.txt";
+	secroots-file      "{{ bind_data_path }}/named.secroots";
+	recursing-file     "{{ bind_data_path }}/named.recursing";
+	allow-query        { any; };
+
+	recursion {{ 'yes' if bind_recursive|default(true) else 'no' }};
+
+	dnssec-validation yes;
+
+	managed-keys-directory "{{ bind_dynamic_path }}";
+
+	pid-file "/run/named/named.pid";
+	session-keyfile "/run/named/session.key";
+
+{% if ansible_os_family == 'RedHat' %}
+	/* https://fedoraproject.org/wiki/Changes/CryptoPolicy */
+	include "/etc/crypto-policies/back-ends/bind.config";
+{% endif %}
+};
+
+logging {
+	channel default_syslog {
+		print-time yes;
+		print-category yes;
+		print-severity yes;
+		syslog daemon;
+		severity info;
+	};
+};
+
+zone "." IN {
+	type hint;
+	file "named.ca";
+};
+
+include "/etc/named.rfc1912.zones";
+include "/etc/named.root.key";
+
+{% for zone in bind_zones %}
+zone "{{ zone.domain }}" IN {
+	type master;
+	file "{{ bind_zone_path }}/{{ zone.domain }}.zone";
+};
+{% endfor %}
+{% for prefix, zone in reverse_zones.items() %}
+{%   set type='in-addr.arpa' if prefix|split(".")|length < 4 else 'ip6.arpa' %}
+zone "{{ prefix }}.{{ type }}" IN {
+	type master;
+	file "{{ prefix }}.{{ type }}.zone";
+};
+{% endfor %}

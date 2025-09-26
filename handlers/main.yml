@@ -1,0 +1,10 @@
+---
+- name: reload_bind
+  service:
+    name: "{{ 'bind' if ansible_os_family == 'Debian' else 'named' }}"
+    state: reloaded
+
+- name: restart_bind
+  service:
+    name: "{{ 'bind' if ansible_os_family == 'Debian' else 'named' }}"
+    state: restarted

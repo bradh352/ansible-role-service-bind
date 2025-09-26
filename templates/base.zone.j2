@@ -1,0 +1,9 @@
+$TTL 600
+@   IN  SOA {{ inventory_hostname }}. {{ bind_email|replace("@", ".") }}. (
+       {{ now(fmt="%y%m%d%H%M") }} ; Serial
+       3600       ; Refresh
+       1800       ; Retry
+       1209600    ; Expire
+       86400 )    ; Minimum TTL
+
+   IN  NS  {{ inventory_hostname }}.

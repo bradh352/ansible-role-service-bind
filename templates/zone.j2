@@ -1,0 +1,9 @@
+$INCLUDE "base.zone"
+
+{% for record in zone.records %}
+{%   if record.addresses|length > 0 %}
+{%     for address in record.addresses %}
+{{ record.name }} {{ record.ttl|default("") }} IN {{ "A" if (address | ansible.utils.ipv4) else "AAAA" }} {{ address }}
+{%     endfor %}
+{%   endif %}
+{% endfor %}

@@ -1,0 +1,142 @@
+---
+- name: "APT: Install required packages"
+  ansible.builtin.apt:
+    pkg:
+      - bind9
+      - bind9utils
+      - bind9-doc
+      - dnsutils
+    state: present
+  when: ansible_os_family == 'Debian'
+
+- name: "DNF: Install required packages"
+  ansible.builtin.dnf:
+    name:
+      - bind
+      - bind-utils
+    state: present
+  when: ansible_os_family == 'RedHat'
+
+- name: "Determine configuration paths"
+  set_fact:
+    bind_config: "{{ '/etc/bind/named.conf' if ansible_os_family == 'Debian' else '/etc/named.conf' }}"
+    bind_path: "{{ '/etc/bind/' if ansible_os_family == 'Debian' else '/var/named/' }}"
+
+- name: "Determine additional system-specific options"
+  set_fact:
+    bind_zone_path: "{{ bind_path }}"
+    bind_data_path: "{{ bind_path }}/data"
+    bind_dynamic_path: "{{ bind_path }}/dynamic"
+    bind_owner: "{{ 'bind' if ansible_os_family == 'Debian' else 'named' }}"
+    bind_conf_setype: "{{ omit if ansible_os_family == 'Debian' else 'named_conf_t' }}"
+    bind_zone_setype: "{{ omit if ansible_os_family == 'Debian' else 'named_conf_t' }}"
+
+- name: "Calculate reverse zones"
+  set_fact:
+    reverse_zones: >-
+      {%- set reverse_zones = {} %}
+      {%- for zone in bind_zones|default([]) %}
+      {%-   for record in zone.records %}
+      {%-     for address in record.addresses %}
+      {%-       set data = { "address": address, "hostname": record.name ~ "." ~ zone.domain } %}
+      {%-       if address | ansible.utils.ipv4 %}
+      {%-         set prefix=(address | split('.'))[:-1] | reverse | join(".") %}
+      {%-       else %}
+      {%-         set ns = namespace(pfx="") %}
+      {%-         set prefix=(address | split(':'))[:-1] %}
+      {%-         for hextet in prefix %}
+      {%-           set ns.pfx = ns.pfx ~ '{:04}'.format(hextet) %}
+      {%-         endfor %}
+      {%-         set prefix = '{:016}'.format(ns.pfx) | list | reverse | join(".") %}
+      {%-       endif %}
+      {%-       if reverse_zones[prefix] is not defined %}
+      {%-         do reverse_zones.update({ prefix: [ data ] }) %}
+      {%-       else %}
+      {%-         do reverse_zones[prefix].append(data)  %}
+      {%-       endif %}
+      {%-     endfor %}
+      {%-   endfor %}
+      {%- endfor %}
+      {{- reverse_zones -}}
+
+- name: "Main configuration file"
+  template:
+    src: "named.conf.j2"
+    dest: "{{ bind_config }}"
+    owner: "{{ bind_owner }}"
+    mode: "600"
+    setype: "{{ bind_conf_setype }}"
+  notify: restart_bind
+
+- name: "Zone configuration files"
+  template:
+    src: "zone.j2"
+    dest: "{{ bind_zone_path }}/{{ zone.domain }}.zone"
+    owner: "{{ bind_owner }}"
+    mode: "600"
+    setype: "{{ bind_zone_setype }}"
+  vars:
+    zone: "{{ item }}"
+  with_items: "{{ bind_zones|default([]) }}"
+  register: zone_files
+  notify: reload_bind
+
+- name: "Reverse Zone configuration files"
+  template:
+    src: "reverse-zone.j2"
+    dest: "{{ bind_zone_path }}/{{ prefix }}.{{ 'in-addr' if prefix | split('.') | length < 4 else 'ip6' }}.arpa.zone"
+    owner: "{{ bind_owner }}"
+    mode: "600"
+    setype: "{{ bind_zone_setype }}"
+  vars:
+    prefix: "{{ item.key }}"
+    zone: "{{ item.value }}"
+  with_items: "{{ reverse_zones|default([])|dict2items }}"
+  register: reverse_zone_files
+  notify: reload_bind
+
+- name: "Base zone file"
+  template:
+    src: "base.zone.j2"
+    dest: "{{ bind_zone_path }}/base.zone"
+    owner: "{{ bind_owner }}"
+    mode: "600"
+    setype: "{{ bind_zone_setype }}"
+  when: zone_files.changed or reverse_zone_files.changed
+
+- name: "UFW: enable DNS tcp"
+  community.general.ufw:
+    rule: allow
+    port: "53"
+    proto: tcp
+  when: ansible_os_family == 'Debian'
+
+- name: "UFW: enable DNS udp"
+  community.general.ufw:
+    rule: allow
+    port: "53"
+    proto: udp
+  when: ansible_os_family == 'Debian'
+
+- name: "FirewallD: enable DNS tcp"
+  firewalld:
+    immediate: yes
+    permanent: yes
+    port: "53/tcp"
+    state: enabled
+  when: ansible_os_family == 'RedHat'
+
+- name: "FirewallD: enable DNS udp"
+  firewalld:
+    immediate: yes
+    permanent: yes
+    port: "53/udp"
+    state: enabled
+  when: ansible_os_family == 'RedHat'
+
+- name: "Ensure bind is started and enabled"
+  service:
+    name: "{{ 'bind' if ansible_os_family == 'Debian' else 'named' }}"
+    enabled: true
+    state: started
+
