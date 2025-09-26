@@ -4,7 +4,6 @@
 
 - `bind_recursive`: Boolean.  Defaults to true.  Whether or not to allow recursive
   DNS queries.
-- `bind_email`: Email address of administrator.  Required.
 - `bind_zones`: List of BIND zones this server is authoritative for.  Each list
   contains these attributes.
   - `domain`: Domain for Zone.

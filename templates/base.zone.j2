@@ -1,5 +1,5 @@
 $TTL 600
-@   IN  SOA {{ inventory_hostname }}. {{ bind_email|replace("@", ".") }}. (
+@   IN  SOA {{ inventory_hostname }}. no.monitored.email. (
        {{ now(fmt="%y%m%d%H%M") }} ; Serial
        3600       ; Refresh
        1800       ; Retry
