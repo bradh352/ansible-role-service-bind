@@ -16,5 +16,7 @@
       needing to specify a record type.
     - `ttl`: TTL for the record.  Defaults to `600` if not specified.
     - `type`: DNS record type. Used for records other than `A` or `AAAA`.
-       NOT YET IMPLEMENTED.
+      `CNAME` and `TXT` are currently supported.
+    - `data`: Data associated with `CNAME` or `TXT` records.  For a `CNAME` this
+      is the FQDN pointed to, for `TXT` this is the text data.
 

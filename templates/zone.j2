@@ -5,5 +5,9 @@ $INCLUDE "base.zone"
 {%     for address in record.addresses %}
 {{ record.name }} {{ record.ttl|default("") }} IN {{ "A" if (address | ansible.utils.ipv4) else "AAAA" }} {{ address }}
 {%     endfor %}
+{%   elif record.type == "CNAME" %}
+{{ record.name }} {{ record.ttl|default("") }} IN CNAME {{ record.data }}.
+{%   elif record.type == "TXT" %}
+{{ record.name }} {{ record.ttl|default("") }} IN TXT "{{ record.data }}"
 {%   endif %}
 {% endfor %}
