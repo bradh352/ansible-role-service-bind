@@ -37,7 +37,7 @@
       {%- set reverse_zones = {} %}
       {%- for zone in bind_zones|default([]) %}
       {%-   for record in zone.records %}
-      {%-     for address in record.addresses %}
+      {%-     for address in record.addresses|default([]) %}
       {%-       set data = { "address": address, "hostname": record.name ~ "." ~ zone.domain } %}
       {%-       if address | ansible.utils.ipv4 %}
       {%-         set prefix=(address | split('.'))[:-1] | reverse | join(".") %}
