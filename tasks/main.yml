@@ -104,6 +104,13 @@
     setype: "{{ bind_zone_setype }}"
   when: zone_files.changed or reverse_zone_files.changed
 
+- name: "Tell bind to use IPv4"
+  lineinfile:
+    dest: "/etc/sysconfig/named"
+    line: 'OPTIONS="{{ "-4" if bind_use_ipv4 else "" }}"'
+    regexp: "^OPTIONS=.*"
+  notify: restart_bind
+
 - name: "UFW: enable DNS tcp"
   community.general.ufw:
     rule: allow
