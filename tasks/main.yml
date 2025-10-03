@@ -107,7 +107,7 @@
 - name: "Tell bind to use IPv4"
   lineinfile:
     dest: "/etc/sysconfig/named"
-    line: 'OPTIONS="{{ "-4" if bind_use_ipv4 else "" }}"'
+    line: 'OPTIONS="{{ "-4" if bind_use_ipv4|default(false) else "" }}"'
     regexp: "^OPTIONS=.*"
   notify: restart_bind
 
