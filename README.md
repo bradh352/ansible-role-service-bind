@@ -7,6 +7,10 @@
 - `bind_use_ipv4`: Boolean. Defaults to false.  Set this to force bind to use
   ipv4 for recursive queries.  May be need to prevent timeouts if ipv6 is not
   enabled in the environment.
+- `bind_forward`: List of domains to forward to a different resolver.  Each
+  one contains these attributes:
+  - `domain`: Domain to forward
+  - `servers`: List of server ip addresses to forward to.
 - `bind_zones`: List of BIND zones this server is authoritative for.  Each list
   contains these attributes.
   - `domain`: Domain for Zone.

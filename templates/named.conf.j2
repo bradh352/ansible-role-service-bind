@@ -42,6 +42,14 @@ zone "." IN {
 include "/etc/named.rfc1912.zones";
 include "/etc/named.root.key";
 
+{% for forward in bind_forward %}
+zone "{{ forward.domain }}" {
+    type forward;
+    forward only;
+    forwarders { {{ forward.servers | join("; ") }}; };
+};
+{% endfor %}
+
 {% for zone in bind_zones %}
 zone "{{ zone.domain }}" IN {
 	type master;
