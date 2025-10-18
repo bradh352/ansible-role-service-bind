@@ -9,5 +9,9 @@ $INCLUDE "base.zone"
 {{ record.name }} {{ record.ttl|default("") }} IN CNAME {{ record.data }}.
 {%   elif record.type == "TXT" %}
 {{ record.name }} {{ record.ttl|default("") }} IN TXT "{{ record.data }}"
+{%   elif record.type == "SRV" %}
+{{ record.name }} {{ record.ttl|default("") }} IN SRV {{ record.priority|default(0) }} {{ record.weight|default(100) }} {{ record.port }} {{ record.data }}.
+{%   elif record.type == "URI" %}
+{{ record.name }} {{ record.ttl|default("") }} IN URI {{ record.priority|default(0) }} {{ record.weight|default(100) }} "{{ record.data }}"
 {%   endif %}
 {% endfor %}
