@@ -1,3 +1,14 @@
+{% if bind_group is defined %}
+{%   set ns = namespace(primary_ip=None, primary_host=None, secondary_ips=[]) %}
+{%   for host in groups[bind_group] %}
+{%     if hostvars[host].bind_primary is defined %}
+{%       set ns.primary_ip = hostvars[host].bind_ip %}
+{%       set ns.primary_host = host %}
+{%     else %}
+{%       do ns.secondary_ips.append(hostvars[host].bind_ip) %}
+{%     endif %}
+{%   endfor %}
+{% endif %}
 options {
 	listen-on port 53 { any; };
 	listen-on-v6 port 53 { any; };
@@ -44,16 +55,40 @@ include "/etc/named.root.key";
 
 {% for forward in bind_forward %}
 zone "{{ forward.domain }}" {
-    type forward;
-    forward only;
-    forwarders { {{ forward.servers | join("; ") }}; };
+	type forward;
+	forward only;
+	forwarders { {{ forward.servers | join("; ") }}; };
 };
-{% endfor %}
 
+{% endfor %}
+{% for key in bind_keys %}
+key "{{ key.name }}" {
+	algorithm {{ key.algorithm|default('hmac-sha256') }};
+	secret "{{ key.secret }}";
+};
+
+{% endfor %}
 {% for zone in bind_zones %}
 zone "{{ zone.domain }}" IN {
-	type master;
+{%   if zone.dynamic_key is defined %}
+{%     if bind_group is not defined or ns.primary_host == inventory_hostname %}
+	type primary;
+	file "{{ bind_dynamic_path }}/{{ zone.domain }}.zone";
+	allow-update { key {{ zone.dynamic_key }}; };
+{%       if bind_group is defined %}
+	allow-transfer { {{ ns.secondary_ips|sort|join(';') }}; };
+	also-notify { {{ ns.secondary_ips|sort|join(';') }}; };
+{%       endif %}
+{%     else %}
+	type secondary;
+	file "{{ bind_dynamic_path }}/{{ zone.domain }}.zone";
+	primaries { {{ ns.primary_ip }}; };
+	allow-notify { {{ ns.primary_ip }}; };
+{%     endif %}
+{%   else %}
+	type primary;
 	file "{{ bind_zone_path }}/{{ zone.domain }}.zone";
+{%   endif %}
 };
 {% endfor %}
 {% for prefix, zone in reverse_zones.items() %}

@@ -6,4 +6,11 @@ $TTL 600
        1209600    ; Expire
        86400 )    ; Minimum TTL
 
+{% if bind_group is defined %}
+{%   for host in groups[bind_group] | sort %}
+   IN  NS  {{ host }}.
+{%   endfor %}
+{% else %}
    IN  NS  {{ inventory_hostname }}.
+{% endif %}
+

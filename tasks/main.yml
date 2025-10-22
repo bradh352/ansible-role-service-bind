@@ -30,13 +30,14 @@
     bind_owner: "{{ 'bind' if ansible_os_family == 'Debian' else 'named' }}"
     bind_conf_setype: "{{ omit if ansible_os_family == 'Debian' else 'named_conf_t' }}"
     bind_zone_setype: "{{ omit if ansible_os_family == 'Debian' else 'named_conf_t' }}"
+    bind_dynzone_setype: "{{ omit if ansible_os_family == 'Debian' else 'named_cache_t' }}"
 
 - name: "Calculate reverse zones"
   set_fact:
     reverse_zones: >-
       {%- set reverse_zones = {} %}
       {%- for zone in bind_zones|default([]) %}
-      {%-   for record in zone.records %}
+      {%-   for record in zone.records|default([]) %}
       {%-     for address in record.addresses|default([]) %}
       {%-       set data = { "address": address, "hostname": record.name ~ "." ~ zone.domain } %}
       {%-       if address | ansible.utils.ipv4 %}
@@ -77,8 +78,24 @@
     setype: "{{ bind_zone_setype }}"
   vars:
     zone: "{{ item }}"
+  when: item.dynamic_key is not defined
   with_items: "{{ bind_zones|default([]) }}"
   register: zone_files
+  notify: reload_bind
+
+- name: "Dynamic zone configuration files"
+  template:
+    src: "zone.j2"
+    dest: "{{ bind_dynamic_path }}/{{ zone.domain }}.zone"
+    owner: "{{ bind_owner }}"
+    mode: "600"
+    setype: "{{ bind_dynzone_setype }}"
+    force: false # Do not modify a dynamic zone, we just need to initialize it with something.
+  vars:
+    zone: "{{ item }}"
+  when: (bind_group is not defined or bind_primary|default(false)) and item.dynamic_key is defined
+  with_items: "{{ bind_zones|default([]) }}"
+  register: dynamic_zone_files
   notify: reload_bind
 
 - name: "Reverse Zone configuration files"
@@ -102,7 +119,7 @@
     owner: "{{ bind_owner }}"
     mode: "600"
     setype: "{{ bind_zone_setype }}"
-  when: zone_files.changed or reverse_zone_files.changed
+  when: zone_files.changed or dynamic_zone_files.changed or reverse_zone_files.changed
 
 - name: "Tell bind to use IPv4"
   lineinfile:

@@ -2,6 +2,11 @@
 
 ## Variables
 
+- `bind_group`: Optional. Name of ansible group for all members participating.
+- `bind_primary`: If `bind_group` is set, required to be set on exactly 1 node
+  that will act as primary.
+- `bind_ip`. If `bind_group` is set, required for the ip address for things
+  like secondary update notifications.
 - `bind_recursive`: Boolean.  Defaults to true.  Whether or not to allow recursive
   DNS queries.
 - `bind_use_ipv4`: Boolean. Defaults to false.  Set this to force bind to use
@@ -11,8 +16,17 @@
   one contains these attributes:
   - `domain`: Domain to forward
   - `servers`: List of server ip addresses to forward to.
+- `bind_keys`: List of bind keys configured.  They must be generated via
+  `tsig-keygen`
+  - `name`: Name to assign to key, must be unique.
+  - `algorithm`: Algorithm associated with key.  Defaults to `hmac-sha256` if
+    not already specified.
+  - `secret`: Base64 encoded secet.
 - `bind_zones`: List of BIND zones this server is authoritative for.  Each list
   contains these attributes.
+  - `dynamic_key`: The key name for a dynamic key for updates.  If specified
+    this zone becomes a dynamic zone and one server will become primary and
+    the remaining will be secondaries and replicate from primary.
   - `domain`: Domain for Zone.
   - `records`: List of records.
     - `name`: Required. Name of entry.  This should be the prefix and not
