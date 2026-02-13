@@ -18,12 +18,12 @@
   when: ansible_os_family == 'RedHat'
 
 - name: "Determine configuration paths"
-  set_fact:
+  ansible.builtin.set_fact:
     bind_config: "{{ '/etc/bind/named.conf' if ansible_os_family == 'Debian' else '/etc/named.conf' }}"
     bind_path: "{{ '/etc/bind/' if ansible_os_family == 'Debian' else '/var/named/' }}"
 
 - name: "Determine additional system-specific options"
-  set_fact:
+  ansible.builtin.set_fact:
     bind_zone_path: "{{ bind_path }}"
     bind_data_path: "{{ bind_path }}/data"
     bind_dynamic_path: "{{ bind_path }}/dynamic"
@@ -33,7 +33,7 @@
     bind_dynzone_setype: "{{ omit if ansible_os_family == 'Debian' else 'named_cache_t' }}"
 
 - name: "Calculate reverse zones"
-  set_fact:
+  ansible.builtin.set_fact:
     reverse_zones: >-
       {%- set reverse_zones = {} %}
       {%- for zone in bind_zones|default([]) %}
@@ -61,7 +61,7 @@
       {{- reverse_zones -}}
 
 - name: "Main configuration file"
-  template:
+  ansible.builtin.template:
     src: "named.conf.j2"
     dest: "{{ bind_config }}"
     owner: "{{ bind_owner }}"
@@ -70,7 +70,7 @@
   notify: restart_bind
 
 - name: "Zone configuration files"
-  template:
+  ansible.builtin.template:
     src: "zone.j2"
     dest: "{{ bind_zone_path }}/{{ zone.domain }}.zone"
     owner: "{{ bind_owner }}"
@@ -84,7 +84,7 @@
   notify: reload_bind
 
 - name: "Dynamic zone configuration files"
-  template:
+  ansible.builtin.template:
     src: "zone.j2"
     dest: "{{ bind_dynamic_path }}/{{ zone.domain }}.zone"
     owner: "{{ bind_owner }}"
@@ -99,7 +99,7 @@
   notify: reload_bind
 
 - name: "Reverse Zone configuration files"
-  template:
+  ansible.builtin.template:
     src: "reverse-zone.j2"
     dest: "{{ bind_zone_path }}/{{ prefix }}.{{ 'in-addr' if prefix | split('.') | length < 4 else 'ip6' }}.arpa.zone"
     owner: "{{ bind_owner }}"
@@ -113,7 +113,7 @@
   notify: reload_bind
 
 - name: "Base zone file"
-  template:
+  ansible.builtin.template:
     src: "base.zone.j2"
     dest: "{{ bind_zone_path }}/base.zone"
     owner: "{{ bind_owner }}"
@@ -122,9 +122,9 @@
   when: zone_files.changed or dynamic_zone_files.changed or reverse_zone_files.changed
 
 - name: "Tell bind to use IPv4"
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: "/etc/sysconfig/named"
-    line: 'OPTIONS="{{ "-4" if bind_use_ipv4|default(false) else "" }}"'
+    line: 'OPTIONS="{{ "-4" if bind_use_ipv4 | default(false) else "" }}"'
     regexp: "^OPTIONS=.*"
   notify: restart_bind
 
@@ -143,24 +143,23 @@
   when: ansible_os_family == 'Debian'
 
 - name: "FirewallD: enable DNS tcp"
-  firewalld:
-    immediate: yes
-    permanent: yes
+  ansible.posix.firewalld:
+    immediate: true
+    permanent: true
     port: "53/tcp"
     state: enabled
   when: ansible_os_family == 'RedHat'
 
 - name: "FirewallD: enable DNS udp"
-  firewalld:
-    immediate: yes
-    permanent: yes
+  ansible.posix.firewalld:
+    immediate: true
+    permanent: true
     port: "53/udp"
     state: enabled
   when: ansible_os_family == 'RedHat'
 
 - name: "Ensure bind is started and enabled"
-  service:
+  ansible.builtin.service:
     name: "{{ 'bind' if ansible_os_family == 'Debian' else 'named' }}"
     enabled: true
     state: started
-
