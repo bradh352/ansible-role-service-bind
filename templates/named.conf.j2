@@ -29,7 +29,7 @@ options {
 	pid-file "/run/named/named.pid";
 	session-keyfile "/run/named/session.key";
 
-{% if ansible_os_family == 'RedHat' %}
+{% if ansible_facts['os_family'] == 'RedHat' %}
 	/* https://fedoraproject.org/wiki/Changes/CryptoPolicy */
 	include "/etc/crypto-policies/back-ends/bind.config";
 {% endif %}
