@@ -38,24 +38,26 @@
       {%- set reverse_zones = {} %}
       {%- for zone in bind_zones|default([]) %}
       {%-   for record in zone.records|default([]) %}
-      {%-     for address in record.addresses|default([]) %}
-      {%-       set data = { "address": address, "hostname": record.name ~ "." ~ zone.domain } %}
-      {%-       if address | ansible.utils.ipv4 %}
-      {%-         set prefix=(address | split('.'))[:-1] | reverse | join(".") %}
-      {%-       else %}
-      {%-         set ns = namespace(pfx="") %}
-      {%-         set prefix=(address | split(':'))[:-1] %}
-      {%-         for hextet in prefix %}
-      {%-           set ns.pfx = ns.pfx ~ '{:04}'.format(hextet) %}
-      {%-         endfor %}
-      {%-         set prefix = '{:016}'.format(ns.pfx) | list | reverse | join(".") %}
-      {%-       endif %}
-      {%-       if reverse_zones[prefix] is not defined %}
-      {%-         do reverse_zones.update({ prefix: [ data ] }) %}
-      {%-       else %}
-      {%-         do reverse_zones[prefix].append(data)  %}
-      {%-       endif %}
-      {%-     endfor %}
+      {%-     if record.name != '*' %}
+      {%-       for address in record.addresses|default([]) %}
+      {%-         set data = { "address": address, "hostname": record.name ~ "." ~ zone.domain } %}
+      {%-         if address | ansible.utils.ipv4 %}
+      {%-           set prefix=(address | split('.'))[:-1] | reverse | join(".") %}
+      {%-         else %}
+      {%-           set ns = namespace(pfx="") %}
+      {%-           set prefix=(address | split(':'))[:-1] %}
+      {%-           for hextet in prefix %}
+      {%-             set ns.pfx = ns.pfx ~ '{:04}'.format(hextet) %}
+      {%-           endfor %}
+      {%-           set prefix = '{:016}'.format(ns.pfx) | list | reverse | join(".") %}
+      {%-         endif %}
+      {%-         if reverse_zones[prefix] is not defined %}
+      {%-           do reverse_zones.update({ prefix: [ data ] }) %}
+      {%-         else %}
+      {%-           do reverse_zones[prefix].append(data)  %}
+      {%-         endif %}
+      {%-       endfor %}
+      {%-     endif %}
       {%-   endfor %}
       {%- endfor %}
       {{- reverse_zones -}}
